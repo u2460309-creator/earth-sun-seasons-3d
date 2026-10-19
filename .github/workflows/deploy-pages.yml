@@ -56,3 +56,113 @@ jobs:
       - name: Deploy website
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+      - name: Verify published website over HTTPS
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import signal
+          import sys
+          import time
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin, urlsplit
+          from urllib.request import Request, urlopen
+
+          class DeadlineExceeded(Exception):
+              pass
+
+          def deadline_exceeded(*_):
+              raise DeadlineExceeded("Public website verification exceeded 110 seconds")
+
+          class Assets(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.modules = []
+                  self.styles = []
+
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == "script" and attrs.get("type") == "module" and attrs.get("src"):
+                      self.modules.append(attrs["src"])
+                  if tag == "link" and "stylesheet" in attrs.get("rel", "").split() and attrs.get("href"):
+                      self.styles.append(attrs["href"])
+
+          page_url = os.environ["PAGE_URL"].strip()
+          origin = urlsplit(page_url)
+          checks = []
+          error = None
+          signal.signal(signal.SIGALRM, deadline_exceeded)
+          signal.alarm(110)
+
+          def fetch(url):
+              parsed = urlsplit(url)
+              if parsed.scheme != "https" or parsed.netloc != origin.netloc:
+                  raise ValueError("Website assets must use HTTPS on the deployed website origin")
+              request = Request(url, headers={"User-Agent": "earth-sun-seasons-readiness/1.0", "Cache-Control": "no-cache"})
+              with urlopen(request, timeout=5) as response:
+                  if response.status != 200 or urlsplit(response.url).scheme != "https":
+                      raise ValueError(f"Expected HTTPS HTTP 200: {url}")
+                  content_type = response.headers.get_content_type()
+                  body = response.read(8 * 1024 * 1024 + 1)
+                  if not body or len(body) > 8 * 1024 * 1024:
+                      raise ValueError(f"Empty or unexpectedly large response: {url}")
+                  return body, content_type
+
+          def verify():
+              body, _ = fetch(page_url)
+              html = body.decode("utf-8")
+              if "地球日照與四季" not in html:
+                  raise ValueError("Homepage is missing the expected Traditional Chinese title")
+              assets = Assets()
+              assets.feed(html)
+              if not assets.modules or not assets.styles:
+                  raise ValueError("Homepage is missing a module script or stylesheet")
+              results = ["Homepage: HTTPS HTTP 200; expected Chinese title found."]
+              for kind, paths in (("Module script", assets.modules), ("Stylesheet", assets.styles)):
+                  for path in dict.fromkeys(paths):
+                      asset_url = urljoin(page_url, path)
+                      asset, content_type = fetch(asset_url)
+                      start = asset[:512].lstrip().lower()
+                      if content_type == "text/html" or start.startswith((b"<!doctype html", b"<html")):
+                          raise ValueError(f"{kind} returned HTML instead of an asset: {asset_url}")
+                      results.append(f"{kind}: HTTP 200; non-HTML resource ({len(asset):,} bytes).")
+              texture, content_type = fetch(urljoin(page_url, "textures/earth-day.jpg"))
+              if content_type != "image/jpeg" or not texture.startswith(b"\xff\xd8\xff") or len(texture) < 100_000:
+                  raise ValueError("Earth texture is not a JPEG image of at least 100,000 bytes")
+              results.append(f"Earth texture: HTTP 200; JPEG verified ({len(texture):,} bytes).")
+              return results
+
+          try:
+              if origin.scheme != "https" or not origin.hostname or origin.username or origin.password or any(c.isspace() or c in "<>" for c in page_url):
+                  raise ValueError("deploy-pages did not return a valid HTTPS website URL")
+              for attempt in range(1, 5):
+                  try:
+                      checks = verify()
+                      break
+                  except DeadlineExceeded:
+                      raise
+                  except Exception as exc:
+                      print(f"Website check attempt {attempt}/4 failed: {exc}", flush=True)
+                      if attempt == 4:
+                          raise
+                      time.sleep(5)
+          except Exception as exc:
+              error = str(exc)
+          finally:
+              signal.alarm(0)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("## Published website verification\n\n")
+                  if origin.scheme == "https" and origin.hostname and not any(c.isspace() or c in "<>" for c in page_url):
+                      summary.write(f"[Open website](<{page_url}>)\n\n")
+                  if error:
+                      summary.write("**Failed:** " + error.replace("\n", " ") + "\n")
+                  else:
+                      summary.write("**Passed:** public HTTPS website and required assets are available.\n\n")
+                      for check in checks:
+                          summary.write(f"- {check}\n")
+              if error:
+                  print(f"::error::{error}", file=sys.stderr)
+                  sys.exit(1)
+              print("Public HTTPS website and required assets passed verification.")
+          PY
