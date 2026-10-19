@@ -1,0 +1,12 @@
+node_modules/
+dist/
+standalone/
+.vite/
+coverage/
+test-results/
+playwright-report/
+*.local
+*.log
+*.tsbuildinfo
+.env
+.env.*

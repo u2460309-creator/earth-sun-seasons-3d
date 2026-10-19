@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b101b" />
+    <meta
+      name="description"
+      content="旋轉地球、切換四季，探索太陽赤緯、晨昏線與各緯度晝長。為高中地球科學打造的 3D 互動教學工具。"
+    />
+    <title>地球日照與四季｜3D 地球科學實驗室</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <style>
+      .boot-screen {
+        box-sizing: border-box;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: grid;
+        place-content: center;
+        padding: 28px;
+        background: #0b101b;
+        color: #eef5ff;
+        font:
+          16px/1.8 system-ui,
+          sans-serif;
+      }
+      .boot-screen section {
+        max-width: 36rem;
+        padding: 28px;
+        border: 1px solid #34435b;
+        border-radius: 20px;
+        background: #121c2b;
+      }
+      .boot-screen h2 {
+        margin: 0 0 16px;
+        font-size: clamp(1.5rem, 5vw, 2rem);
+        line-height: 1.4;
+      }
+      .boot-screen p {
+        margin: 12px 0;
+      }
+      .boot-screen a {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 10px 18px;
+        border: 1px solid #a9dfff;
+        border-radius: 10px;
+        color: #a9dfff;
+        text-decoration: none;
+      }
+      .boot-screen a:focus-visible {
+        outline: 3px solid #ffffff;
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body style="margin: 0">
+    <div id="root">
+      <main class="boot-screen" data-testid="boot-screen">
+        <section aria-labelledby="boot-title">
+          <h2 id="boot-title">地球日照與四季</h2>
+          <p role="status">正在載入互動實驗室…</p>
+          <p>
+            若此畫面持續顯示，表示網站程式尚未成功載入。請重新載入；若仍無法進入，請確認預覽網址與連線狀態。
+          </p>
+          <a href="">重新載入網頁</a>
+          <noscript
+            ><p>
+              此互動網站需要 JavaScript。請在瀏覽器啟用 JavaScript 後重新載入。
+            </p></noscript
+          >
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
