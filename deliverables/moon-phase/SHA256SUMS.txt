@@ -1,0 +1,2 @@
+507148a131e5c0d5844c752b9e7164b8d8ed69df2633f9b0dc2b66f2de2a8a4b  moon-phases-3d-offline.html
+1a333072b9b9ef45db51122efa3a285f06222c4556d2f4936056efa9110861ea  moon-phases-3d-source.zip
